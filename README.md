@@ -108,14 +108,16 @@ ruangrasa/
 
 ### **3. Konfigurasi Backend & Menjalankan Server**
 1. Buka solusi `ruangrasa.slnx` di Visual Studio.
-2. Buka berkas `ruangrasa/Web.config` dan pastikan `connectionString` sesuai dengan nama server SQL Anda:
-   ```xml
-   <connectionStrings>
-     <add name="RuangrasaDbContext" 
-          connectionString="Data Source=.;Initial Catalog=RuangrasaDb;Integrated Security=True;MultipleActiveResultSets=True;" 
-          providerName="System.Data.SqlClient" />
-   </connectionStrings>
+2. Buat berkas konfigurasi lokal dari template (sekali saja):
+   ```bash
+   cp ruangrasa/Web.config.example ruangrasa/Web.config
    ```
+   Lalu isi nilai asli di `ruangrasa/Web.config`:
+   - `connectionString` → sesuaikan `Data Source` dengan nama server SQL Anda.
+   - `JwtSecretKey` → string acak minimal 32 karakter (bebas, rahasia).
+   - `SmtpEmail` + `SmtpPassword` → akun Gmail pengirim OTP + **App Password 16 karakter**
+     (aktifkan 2FA lalu buat di [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)).
+   - `QrislyApiKey` / `RajaOngkirApiKey` → API key payment gateway & ongkir (opsional untuk demo).
 3. Tekan **Build Solution** (`Ctrl + Shift + B`) untuk mengompilasi proyek.
 4. Jalankan aplikasi dengan menekan tombol **IIS Express / Start Debugging** (`F5`).
 5. Backend REST API akan aktif di alamat lokal (contoh: `https://localhost:44365/` atau `http://localhost:5000/`).
@@ -224,6 +226,14 @@ flowchart TD
     
     CheckRole -->|Tidak Sesuai| Denied[Tampilkan Halaman 403 Forbidden]
 ```
+
+---
+
+---
+
+## 🔐 Catatan Keamanan Konfigurasi
+
+Berkas `ruangrasa/Web.config` memuat kredensial (JWT secret, password SMTP, API key) dan **sengaja tidak di-commit** ke repositori (tercantum di `.gitignore`). Yang di-commit hanya template **`ruangrasa/Web.config.example`**. Kredensial di dalam kode sumber juga sudah dibersihkan — semua nilai sensitif dibaca dari `Web.config` saat runtime.
 
 ---
 

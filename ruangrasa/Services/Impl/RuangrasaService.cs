@@ -566,7 +566,7 @@ namespace ruangrasa.Services.Impl
                 throw new Exception("Email atau kata sandi tidak sesuai.");
             }
 
-            return await IssueTokensAsync(user);
+            return IssueTokensAsync(user).GetAwaiter().GetResult();
         }
 
         /// <summary>

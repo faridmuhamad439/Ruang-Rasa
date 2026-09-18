@@ -72,7 +72,7 @@ namespace ruangrasa.Controllers
             if (!ModelState.IsValid)
             {
                 // 422 Unprocessable Entity: validasi server-side gagal (format respons JSON konsisten)
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi data gagal. Periksa kembali isian formulir.",
@@ -100,7 +100,7 @@ namespace ruangrasa.Controllers
             if (!ModelState.IsValid)
             {
                 // 422 Unprocessable Entity: validasi server-side gagal (format respons JSON konsisten)
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi data gagal. Periksa kembali isian formulir.",
@@ -126,7 +126,7 @@ namespace ruangrasa.Controllers
             if (!ModelState.IsValid)
             {
                 // 422 Unprocessable Entity: validasi server-side gagal (format respons JSON konsisten)
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi data gagal. Periksa kembali isian formulir.",
@@ -152,7 +152,7 @@ namespace ruangrasa.Controllers
             if (!ModelState.IsValid)
             {
                 // 422 Unprocessable Entity: validasi server-side gagal (format respons JSON konsisten)
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi data gagal. Periksa kembali isian formulir.",
@@ -201,7 +201,7 @@ namespace ruangrasa.Controllers
             if (!ModelState.IsValid)
             {
                 // 422 Unprocessable Entity: validasi server-side gagal (format respons JSON konsisten)
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi data gagal. Periksa kembali isian formulir.",
@@ -227,7 +227,7 @@ namespace ruangrasa.Controllers
             if (!ModelState.IsValid)
             {
                 // 422 Unprocessable Entity: validasi server-side gagal (format respons JSON konsisten)
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi data gagal. Periksa kembali isian formulir.",
@@ -313,7 +313,7 @@ namespace ruangrasa.Controllers
             if (!ModelState.IsValid)
             {
                 // 422 Unprocessable Entity: validasi server-side gagal (format respons JSON konsisten)
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi data gagal. Periksa kembali isian formulir.",
@@ -390,7 +390,7 @@ namespace ruangrasa.Controllers
             if (!ModelState.IsValid)
             {
                 // 422 Unprocessable Entity: validasi server-side gagal (format respons JSON konsisten)
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi data gagal. Periksa kembali isian formulir.",
@@ -416,7 +416,7 @@ namespace ruangrasa.Controllers
             if (!ModelState.IsValid)
             {
                 // 422 Unprocessable Entity: validasi server-side gagal (format respons JSON konsisten)
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi data gagal. Periksa kembali isian formulir.",
@@ -859,7 +859,7 @@ namespace ruangrasa.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return ResponseMessage(Request.CreateResponse(HttpStatusCode.UnprocessableEntity, new
+                return ResponseMessage(Request.CreateResponse((HttpStatusCode)422, new
                 {
                     success = false,
                     message = "Validasi gagal.",
