@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Http;
@@ -12,14 +12,7 @@ namespace ruangrasa
             // Web API configuration and services
 
             // Global Error Handling (Ketentuan Backend #7): 500 selalu JSON konsisten
-            config.Filters.Add(new App_Start.GlobalApiExceptionAttribute());
-
-            // 404 JSON untuk rute API yang tidak dikenal (fallback di akhir tabel rute)
-            config.Routes.MapHttpRoute(
-                name: "ApiNotFoundFallback",
-                routeTemplate: "api/{*path}",
-                defaults: new { controller = "FallbackApi", action = "Handle404" }
-            );
+            config.Filters.Add(new GlobalApiExceptionAttribute());
 
             // Web API routes
             config.MapHttpAttributeRoutes();
@@ -28,6 +21,13 @@ namespace ruangrasa
                 name: "DefaultApi",
                 routeTemplate: "api/{controller}/{id}",
                 defaults: new { id = RouteParameter.Optional }
+            );
+
+            // 404 JSON untuk rute API yang tidak dikenal (fallback di akhir tabel rute)
+            config.Routes.MapHttpRoute(
+                name: "ApiNotFoundFallback",
+                routeTemplate: "api/{*path}",
+                defaults: new { controller = "FallbackApi", action = "Handle404" }
             );
         }
     }
