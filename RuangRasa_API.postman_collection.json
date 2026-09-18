@@ -1,0 +1,651 @@
+{
+	"info": {
+		"_postman_id": "ruangrasa-api-collection-v1",
+		"name": "Ruang Rasa Coffee - REST API Collection (Projekan S1)",
+		"description": "Koleksi Postman API Resmi untuk Pengujian Seluruh Endpoint Web Application Ruang Rasa Coffee Braga Bandung.\nMendukung standar REST API lengkap: GET, POST, PUT, PATCH, DELETE dengan format response JSON terstandarisasi ApiResponse<T>.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Authentication & Authorization",
+			"item": [
+				{
+					"name": "Login User (Dapatkan JWT Token)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"Email\": \"admin@ruangrasa.com\",\n    \"Password\": \"Password123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Autentikasi akun pengguna (Admin, Owner, Kasir, Dapur, Waiter, Driver, Customer) dan menghasilkan JWT Bearer Token serta Refresh Token."
+					},
+					"response": []
+				},
+				{
+					"name": "Register Akun Pelanggan (Customer)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"FullName\": \"Pelanggan Baru\",\n    \"Email\": \"pelanggan.baru@gmail.com\",\n    \"PhoneNumber\": \"081298765432\",\n    \"Password\": \"Password123!\",\n    \"ConfirmPassword\": \"Password123!\",\n    \"RoleName\": \"Customer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						},
+						"description": "Pendaftaran akun baru dengan hashing BCrypt dan validasi server-side."
+					},
+					"response": []
+				},
+				{
+					"name": "Register Akun Staf (Admin Only: Kasir / Dapur / Driver)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"FullName\": \"Staff Kasir Baru\",\n    \"Email\": \"kasir.baru@ruangrasa.com\",\n    \"PhoneNumber\": \"081100000099\",\n    \"Password\": \"Password123!\",\n    \"ConfirmPassword\": \"Password123!\",\n    \"RoleName\": \"Kasir\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						},
+						"description": "Penambahan akun staf operasional oleh Admin."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RefreshToken\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/refresh-token",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"refresh-token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Lupa Password (Request Token)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"Email\": \"admin@ruangrasa.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/forgot-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"forgot-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password (Ganti Kata Sandi Baru)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"Token\": \"RESET-123456\",\n    \"NewPassword\": \"PasswordBaru123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/reset-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"reset-password"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Menu & Categories Management",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/categories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"categories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Menus with Paging, Search, Filter & Sort",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"SearchKeyword\": \"Kopi\",\n    \"Category\": \"Signature Coffee\",\n    \"SortBy\": \"price\",\n    \"SortDirection\": \"ASC\",\n    \"PageNumber\": 1,\n    \"PageSize\": 10\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/menus/paging",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"menus",
+								"paging"
+							]
+						},
+						"description": "Endpoint data list terpadu dengan Pagination, Pencarian Keyword, Filter Kategori, dan Sorting multi-kolom."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Menu By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/menus/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"menus",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Menu Baru (Admin / Owner)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"CategoryId\": 1,\n    \"Name\": \"Kopi Susu Gula Aren Spesial Braga\",\n    \"Description\": \"Espresso arabika blend dengan gula aren murni dan fresh milk creamy.\",\n    \"Price\": 28000,\n    \"Stock\": 50,\n    \"ImageUrl\": \"/Uploads/sample_coffee.jpg\",\n    \"IsAvailable\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/menus",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"menus"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Master Menu (PUT)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"CategoryId\": 1,\n    \"Name\": \"Kopi Susu Gula Aren Spesial Braga (Updated)\",\n    \"Description\": \"Espresso arabika blend pilihan dengan resep racikan khas Ruang Rasa.\",\n    \"Price\": 30000,\n    \"Stock\": 75,\n    \"ImageUrl\": \"/Uploads/sample_coffee.jpg\",\n    \"IsAvailable\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/menus/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"menus",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Menu (Soft Delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/menus/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"menus",
+								"1"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Dining Tables (Meja Dine-In)",
+			"item": [
+				{
+					"name": "Get All Dining Tables",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/tables",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"tables"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Status Meja (PATCH / PUT)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"Status\": \"Occupied\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/tables/1/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"tables",
+								"1",
+								"status"
+							]
+						},
+						"description": "Update parsial status ketersediaan meja ('Available', 'Occupied', 'Reserved', 'Maintenance')."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Orders, POS & Checkout",
+			"item": [
+				{
+					"name": "Create Order Baru (DineIn / TakeAway / Delivery)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"CustomerId\": 14,\n    \"GuestName\": \"Rian Hidayat\",\n    \"OrderType\": \"DineIn\",\n    \"TableId\": 1,\n    \"Subtotal\": 65000,\n    \"Tax\": 6500,\n    \"Discount\": 0,\n    \"TotalAmount\": 71500,\n    \"PaymentMethod\": \"QRIS\",\n    \"Notes\": \"Gula sedikit, es batu banyak\",\n    \"Items\": [\n        {\n            \"MenuId\": 1,\n            \"Quantity\": 2,\n            \"UnitPrice\": 25000,\n            \"Notes\": \"Less sugar\"\n        },\n        {\n            \"MenuId\": 5,\n            \"Quantity\": 1,\n            \"UnitPrice\": 15000,\n            \"Notes\": \"Extra crispy\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Order Status (PATCH)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"NewStatus\": \"Cooking\",\n    \"StaffUserId\": 8\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/1/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"1",
+								"status"
+							]
+						},
+						"description": "Pembaruan status tahapan operasional pesanan (PendingPayment, Confirmed, Cooking, ReadyToServe, Delivering, Delivered, Completed, Cancelled)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Customer Order History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/orders/customer/14",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"customer",
+								"14"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Submit Review & Rating Pesanan",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"OrderId\": 1,\n    \"CustomerId\": 14,\n    \"Rating\": 5,\n    \"ReviewText\": \"Kopi susunya juara banget, racikan pas dan suasananya sangat nyaman!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/1/review",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"1",
+								"review"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "5. File Upload (Gambar & PDF)",
+			"item": [
+				{
+					"name": "Upload Berkas Multipart (Gambar / PDF)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload"
+							]
+						},
+						"description": "Mengunggah berkas Gambar (JPG, PNG, WEBP) atau Dokumen (PDF) ke direktori server ~/Uploads/."
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Berkas Base64",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"Base64Data\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\",\n    \"FileName\": \"test_avatar.png\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/base64",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"base64"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "6. Dashboard & Analytics",
+			"item": [
+				{
+					"name": "Get Dashboard Operational Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/dashboard/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"dashboard",
+								"stats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Staff Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/staff",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"staff"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://localhost:44365/api/ruangrasa",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

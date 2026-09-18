@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ============================================================
+  RUANG RASA COFFEE - Template Konfigurasi (Web.config.example)
+  ============================================================
+  Cara pakai:
+    1. Salin file ini menjadi "Web.config" di folder yang sama.
+    2. Isi nilai asli pada bagian bertanda [ISI-DI-SINI].
+    3. Web.config asli sengaja TIDAK di-commit ke git (ada di .gitignore)
+       karena memuat kredensial. Hanya template ini yang ikut repositori.
+-->
+<configuration>
+  <connectionStrings>
+    <!-- Sesuaikan data source dengan instance SQL Server lokal Anda -->
+    <add name="DbPosContext" connectionString="data source=localhost\SQLEXPRESS;initial catalog=RuangrasaDb;Integrated Security=True;MultipleActiveResultSets=True;Connect Timeout=15;App=EntityFramework" providerName="System.Data.SqlClient" />
+    <add name="RuangrasaDbContext" connectionString="data source=localhost\SQLEXPRESS;initial catalog=RuangrasaDb;Integrated Security=True;MultipleActiveResultSets=True;Connect Timeout=15;App=EntityFramework" providerName="System.Data.SqlClient" />
+  </connectionStrings>
+
+  <appSettings>
+    <add key="webpages:Version" value="3.0.0.0" />
+    <add key="webpages:Enabled" value="false" />
+    <add key="ClientValidationEnabled" value="true" />
+    <add key="UnobtrusiveJavaScriptEnabled" value="true" />
+
+    <!-- JWT: ganti secret dengan string acak minimal 32 karakter untuk deployment -->
+    <add key="JwtSecretKey" value="[ISI-DI-SINI:JWT-SECRET-MINIMAL-32-KARAKTER]" />
+    <add key="JwtIssuer" value="RuangRasaServer" />
+    <add key="JwtAudience" value="RuangRasaClient" />
+
+    <!-- Payment Gateway QRISLY & RajaOngkir (daftar gratis untuk mendapatkan API key) -->
+    <add key="QrislyApiKey" value="[ISI-DI-SINI:QRISLY-API-KEY]" />
+    <add key="QrisMerchantName" value="RUANG RASA QRIS" />
+    <add key="RajaOngkirApiKey" value="[ISI-DI-SINI:RAJAONGKIR-API-KEY]" />
+    <add key="RajaOngkirOriginCityId" value="152" /> <!-- 152: Jakarta Pusat -->
+
+    <!-- SMTP Gmail untuk kirim OTP reset password.
+         Password = Gmail App Password 16 karakter (bukan password akun biasa).
+         Aktifkan 2FA lalu buat di: https://myaccount.google.com/apppasswords -->
+    <add key="SmtpHost" value="smtp.gmail.com" />
+    <add key="SmtpPort" value="587" />
+    <add key="SmtpEmail" value="[ISI-DI-SINI:EMAIL-GMAIL-PENGIRIM]" />
+    <add key="SmtpPassword" value="[ISI-DI-SINI:APP-PASSWORD-16-KARAKTER]" />
+    <add key="SmtpSenderName" value="Ruang Rasa Coffee Shop &amp; Roastery" />
+  </appSettings>
+
+  <system.web>
+    <compilation debug="true" targetFramework="4.7.2" />
+    <httpRuntime targetFramework="4.7.2" maxRequestLength="20480" />
+  </system.web>
+
+  <system.webServer>
+    <handlers>
+      <remove name="ExtensionlessUrlHandler-Integrated-4.0" />
+      <remove name="OPTIONSVerbHandler" />
+      <remove name="TRACEVerbHandler" />
+      <add name="ExtensionlessUrlHandler-Integrated-4.0" path="*." verb="*" type="System.Web.Handlers.TransferRequestHandler" preCondition="integratedMode,runtimeVersionv4.0" />
+    </handlers>
+  </system.webServer>
+</configuration>

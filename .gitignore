@@ -1,0 +1,77 @@
+# ============================================================
+# GITIGNORE - RUANG RASA COFFEE (Monorepo Projekan S1)
+# Yang TIDAK di-push: build artifacts, paket pihak ketiga,
+# kredensial (Web.config), file upload runtime, file IDE.
+# Yang DI-PUSH: semua source code, SQL, docs, flowchart, tools.
+# ============================================================
+
+# ---------- KREDENSIAL & KONFIGURASI LOKAL (RAHASIA) ----------
+# Web.config asli memuat: JWT secret, SMTP password, API key payment.
+# Yang di-commit hanya template: Web.config.example
+ruangrasa/Web.config
+
+# ---------- BUILD OUTPUT (.NET Framework) ----------
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+ruangrasa/bin/
+ruangrasa/obj/
+
+# ---------- PAKET NUGET PIHAK KETIGA ----------
+# Folder packages berisiribli library compiled (Newtonsoft, EntityFramework, BCrypt, JWT...)
+# NuGet restore akan mengunduh ulang dari packages.config saat build.
+packages/
+
+# ---------- PUBLIKASI & DEPLOYMENT ----------
+*.publishsettings
+*.pubxml
+*.pubxml.user
+App_Data/*.mdf
+App_Data/*.ldf
+
+# ---------- FILE UPLOAD RUNTIME (hasil POST /upload) ----------
+ruangrasa/Uploads/
+
+# ---------- USER-SPECIFIC FILES ----------
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# ---------- VISUAL STUDIO / IDE ----------
+.vs/
+.idea/
+*.swp
+*~
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ---------- OS JUNK ----------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# ---------- LOG & TEMP ----------
+*.log
+*.tmp
+*.bak
+*.cache
+nul
+
+# ---------- NODE (jika suatu saat ditambahkan tooling JS) ----------
+node_modules/
+npm-debug.log*
+
+# ---------- PYTHON TOOLING (tools/ flowchart builder) ----------
+__pycache__/
+*.pyc
+.venv/
+
+# ---------- TEST COVERAGE ----------
+TestResults/
+[Ll]ogs/

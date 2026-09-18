@@ -1,0 +1,29 @@
+# Menyeragamkan line ending antar OS
+* text=auto
+
+# Source code
+*.cs text
+*.js text
+*.css text
+*.html text
+*.sql text
+*.py text
+*.json text
+*.md text
+*.xml text
+*.config text
+
+# Binary - jangan diubah sama sekali
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.drawio binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# Shell script selalu LF
+*.sh text eol=lf
