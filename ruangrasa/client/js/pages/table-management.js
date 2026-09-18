@@ -77,7 +77,85 @@ const TableManagementPage = {
 
     setSearchKeyword(keyword) {
         this.searchKeyword = keyword.toLowerCase().trim();
-        this.render();
+        if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = setTimeout(() => {
+            const tableBody = document.getElementById('tables-table-body');
+            const countBadge = document.getElementById('tables-count-badge');
+            if (tableBody) {
+                const total = this.tables.length;
+                const filtered = this.getFilteredTables();
+                if (countBadge) {
+                    countBadge.innerHTML = `Menampilkan <b>${filtered.length}</b> dari <b>${total}</b> meja`;
+                }
+                tableBody.innerHTML = this.renderTableRowsHtml(filtered);
+            } else {
+                this.render();
+            }
+        }, 150);
+    },
+
+    getFilteredTables() {
+        return this.tables.filter(t => {
+            const matchArea = this.filterArea === 'all' || (t.LocationArea || '').toLowerCase() === this.filterArea.toLowerCase();
+            const matchStatus = this.filterStatus === 'all' || (t.Status || '').toLowerCase() === this.filterStatus.toLowerCase();
+            const matchSearch = !this.searchKeyword || 
+                                (t.TableNumber || '').toLowerCase().includes(this.searchKeyword) || 
+                                (t.LocationArea || '').toLowerCase().includes(this.searchKeyword);
+            return matchArea && matchStatus && matchSearch;
+        });
+    },
+
+    renderTableRowsHtml(filtered) {
+        if (filtered.length === 0) {
+            return `
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                        <span class="material-symbols-rounded" style="font-size: 36px; display: block; margin-bottom: 0.5rem; color: var(--border-color);">search_off</span>
+                        Tidak ada meja yang sesuai dengan filter pencarian.
+                    </td>
+                </tr>
+            `;
+        }
+        return filtered.map(t => {
+            const updating = !!this.isUpdating[t.TableId];
+            return `
+                <tr style="${updating ? 'opacity: 0.5;' : ''}">
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-symbols-rounded" style="color: var(--primary); font-size: 18px;">restaurant</span>
+                            <span style="font-weight: 700; color: var(--text-heading); font-size: 0.95rem;">${t.TableNumber}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.88rem; color: var(--text-body);">${t.LocationArea}</span>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.88rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <span class="material-symbols-rounded" style="font-size: 16px;">person</span>
+                            ${t.Capacity} Kursi
+                        </span>
+                    </td>
+                    <td>
+                        <span class="${this.getStatusBadgeClass(t.Status)}">
+                            ${this.getStatusLabel(t.Status)}
+                        </span>
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; align-items: center; gap: 0.5rem; justify-content: flex-end;">
+                            <select class="table-status-select" 
+                                    style="min-width: 175px;"
+                                    ${updating ? 'disabled' : ''}
+                                    onchange="TableManagementPage.updateStatus(${t.TableId}, this.value)">
+                                <option value="Available" ${t.Status === 'Available' ? 'selected' : ''}>● Tersedia (Available)</option>
+                                <option value="Occupied" ${t.Status === 'Occupied' ? 'selected' : ''}>● Terisi (Occupied)</option>
+                                <option value="Reserved" ${t.Status === 'Reserved' ? 'selected' : ''}>● Reservasi (Reserved)</option>
+                                <option value="Maintenance" ${t.Status === 'Maintenance' ? 'selected' : ''}>● Perbaikan (Maintenance)</option>
+                            </select>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     },
 
     getStatusBadgeClass(status) {
@@ -271,7 +349,7 @@ const TableManagementPage = {
                             <span class="material-symbols-rounded" style="color: var(--primary);">list_alt</span>
                             Daftar Meja Dine-In
                         </h3>
-                        <span style="font-size: 0.85rem; color: var(--text-muted);">
+                        <span id="tables-count-badge" style="font-size: 0.85rem; color: var(--text-muted);">
                             Menampilkan <b>${filtered.length}</b> dari <b>${total}</b> meja
                         </span>
                     </div>
@@ -287,54 +365,8 @@ const TableManagementPage = {
                                     <th style="width: 30%; text-align: right;">Ubah Status Meja</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${filtered.length === 0 ? `
-                                    <tr>
-                                        <td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
-                                            <span class="material-symbols-rounded" style="font-size: 36px; display: block; margin-bottom: 0.5rem; color: var(--border-color);">search_off</span>
-                                            Tidak ada meja yang sesuai dengan filter pencarian.
-                                        </td>
-                                    </tr>
-                                ` : filtered.map(t => {
-                                    const updating = !!this.isUpdating[t.TableId];
-                                    return `
-                                        <tr style="${updating ? 'opacity: 0.5;' : ''}">
-                                            <td>
-                                                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                                    <span class="material-symbols-rounded" style="color: var(--primary); font-size: 18px;">restaurant</span>
-                                                    <span style="font-weight: 700; color: var(--text-heading); font-size: 0.95rem;">${t.TableNumber}</span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span style="font-size: 0.88rem; color: var(--text-body);">${t.LocationArea}</span>
-                                            </td>
-                                            <td>
-                                                <span style="font-size: 0.88rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.3rem;">
-                                                    <span class="material-symbols-rounded" style="font-size: 16px;">person</span>
-                                                    ${t.Capacity} Kursi
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span class="${this.getStatusBadgeClass(t.Status)}">
-                                                    ${this.getStatusLabel(t.Status)}
-                                                </span>
-                                            </td>
-                                            <td style="text-align: right;">
-                                                <div style="display: inline-flex; align-items: center; gap: 0.5rem; justify-content: flex-end;">
-                                                    <select class="table-status-select" 
-                                                            style="min-width: 175px;"
-                                                            ${updating ? 'disabled' : ''}
-                                                            onchange="TableManagementPage.updateStatus(${t.TableId}, this.value)">
-                                                        <option value="Available" ${t.Status === 'Available' ? 'selected' : ''}>● Tersedia (Available)</option>
-                                                        <option value="Occupied" ${t.Status === 'Occupied' ? 'selected' : ''}>● Terisi (Occupied)</option>
-                                                        <option value="Reserved" ${t.Status === 'Reserved' ? 'selected' : ''}>● Reservasi (Reserved)</option>
-                                                        <option value="Maintenance" ${t.Status === 'Maintenance' ? 'selected' : ''}>● Perbaikan (Maintenance)</option>
-                                                    </select>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `;
-                                }).join('')}
+                            <tbody id="tables-table-body">
+                                ${this.renderTableRowsHtml(filtered)}
                             </tbody>
                         </table>
                     </div>

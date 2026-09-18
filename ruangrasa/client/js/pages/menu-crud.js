@@ -52,43 +52,135 @@ const MenuCrudPage = {
         }
     },
 
-    async loadMenus() {
+    async loadMenus(renderFull = false) {
         try {
             const res = await Api.post('/menus/paging', this.param);
             if (res) {
                 this.menus = res.Data || res.data || (Array.isArray(res) ? res : []);
                 this.totalData = res.TotalData ?? res.totalData ?? this.menus.length;
                 this.totalPages = res.TotalPages ?? res.totalPages ?? 1;
-                this.render();
+                if (renderFull) {
+                    this.render();
+                } else {
+                    this.renderTableOnly();
+                }
             }
         } catch (err) {
             console.warn('Gagal mengambil data menu:', err);
-            this.render();
+            if (renderFull) {
+                this.render();
+            } else {
+                this.renderTableOnly();
+            }
         }
     },
 
     setSearch(kw) {
         this.param.SearchKeyword = kw;
         this.param.PageNumber = 1;
-        this.loadMenus();
+        if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = setTimeout(() => {
+            this.loadMenus(false);
+        }, 250);
     },
 
     setCategory(cat) {
         this.param.Category = cat;
         this.param.PageNumber = 1;
-        this.loadMenus();
+        this.loadMenus().then(() => this.renderTableOnly());
     },
 
     setPage(page) {
         if (page < 1 || page > this.totalPages) return;
         this.param.PageNumber = page;
-        this.loadMenus();
+        this.loadMenus().then(() => this.renderTableOnly());
     },
 
     setPageSize(size) {
         this.param.PageSize = parseInt(size) || 10;
         this.param.PageNumber = 1;
-        this.loadMenus();
+        this.loadMenus().then(() => this.renderTableOnly());
+    },
+
+    renderTableOnly() {
+        const tableBody = document.getElementById('menu-table-body');
+        const paginationWrap = document.getElementById('menu-pagination-wrap');
+        const totalBadge = document.getElementById('menu-total-badge');
+        if (!tableBody || !paginationWrap) {
+            this.render();
+            return;
+        }
+        if (totalBadge) {
+            totalBadge.innerHTML = `Total: <b>${this.totalData}</b> Menu`;
+        }
+        tableBody.innerHTML = this.renderTableRowsHtml();
+        paginationWrap.innerHTML = this.renderPaginationHtml();
+    },
+
+    renderTableRowsHtml() {
+        if (this.menus.length === 0) {
+            return `
+                <tr>
+                    <td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">
+                        Tidak ada data menu.
+                    </td>
+                </tr>
+            `;
+        }
+        return this.menus.map(m => `
+            <tr>
+                <td style="width:60px;">
+                    <img src="${m.ImageUrl || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80'}" 
+                         style="width:45px;height:45px;object-fit:cover;border-radius:6px;" 
+                         onerror="this.src='https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80'" />
+                </td>
+                <td>
+                    <div style="font-weight:700;">${m.Name}</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        ${m.Description || '-'}
+                    </div>
+                </td>
+                <td><span class="menu-category-tag" style="position:static;">${m.CategoryName}</span></td>
+                <td style="font-weight:700;color:var(--primary);">${App.formatRupiah(m.Price)}</td>
+                <td>${m.Stock || 100} porsi</td>
+                <td>
+                    <span class="status-pill ${m.IsAvailable ? 'completed' : 'cancelled'}">
+                        ${m.IsAvailable ? 'Tersedia' : 'Habis'}
+                    </span>
+                </td>
+                <td style="text-align:right;">
+                    <div style="display:inline-flex;gap:0.4rem;">
+                        <button class="btn btn-outline btn-sm" onclick="MenuCrudPage.openDetailModal(${m.MenuId})">Detail</button>
+                        <button class="btn btn-primary btn-sm" onclick="MenuCrudPage.openEditModal(${m.MenuId})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="MenuCrudPage.deleteMenu(${m.MenuId}, '${(m.Name || '').replace(/'/g, "\\'")}')">Hapus</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    },
+
+    renderPaginationHtml() {
+        return `
+            <div style="display:flex;align-items:center;gap:0.75rem;color:var(--text-muted);font-size:0.85rem;">
+                <span>Tampilkan:</span>
+                <select class="filter-select" style="padding:0.25rem 0.6rem;font-size:0.85rem;height:auto;width:auto;" onchange="MenuCrudPage.setPageSize(this.value)">
+                    <option value="5" ${this.param.PageSize === 5 ? 'selected' : ''}>5 per halaman</option>
+                    <option value="10" ${this.param.PageSize === 10 ? 'selected' : ''}>10 per halaman</option>
+                    <option value="20" ${this.param.PageSize === 20 ? 'selected' : ''}>20 per halaman</option>
+                    <option value="50" ${this.param.PageSize === 50 ? 'selected' : ''}>50 per halaman</option>
+                </select>
+                <span>| Total: <b>${this.totalData}</b> Menu (Hal. <b>${this.param.PageNumber}</b>/<b>${this.totalPages}</b>)</span>
+            </div>
+            ${this.totalPages > 1 ? `
+                <div class="page-numbers">
+                    <button class="page-btn" onclick="MenuCrudPage.setPage(${this.param.PageNumber - 1})" ${this.param.PageNumber <= 1 ? 'disabled' : ''}>&laquo;</button>
+                    ${Array.from({ length: this.totalPages }, (_, i) => i + 1).map(p => `
+                        <button class="page-btn ${this.param.PageNumber === p ? 'active' : ''}" onclick="MenuCrudPage.setPage(${p})">${p}</button>
+                    `).join('')}
+                    <button class="page-btn" onclick="MenuCrudPage.setPage(${this.param.PageNumber + 1})" ${this.param.PageNumber >= this.totalPages ? 'disabled' : ''}>&raquo;</button>
+                </div>
+            ` : ''}
+        `;
     },
 
     openCreateModal() {
@@ -273,7 +365,7 @@ const MenuCrudPage = {
                 <div class="filter-bar">
                     <div class="search-input-wrap">
                         <span class="search-icon"><span class="material-symbols-rounded" style="font-size:18px;">search</span></span>
-                        <input type="text" placeholder="Cari menu untuk dikelola..." 
+                        <input type="text" id="menu-search-input" placeholder="Cari menu untuk dikelola..." 
                                value="${this.param.SearchKeyword}" 
                                oninput="MenuCrudPage.setSearch(this.value)" />
                     </div>
@@ -287,7 +379,7 @@ const MenuCrudPage = {
                         `).join('')}
                     </select>
 
-                    <div style="color:var(--text-muted);font-size:0.85rem;margin-left:auto;">
+                    <div id="menu-total-badge" style="color:var(--text-muted);font-size:0.85rem;margin-left:auto;">
                         Total: <b>${this.totalData}</b> Menu
                     </div>
                 </div>
@@ -307,68 +399,15 @@ const MenuCrudPage = {
                                     <th style="text-align:right;">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${this.menus.length === 0 ? `
-                                    <tr>
-                                        <td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">
-                                            Tidak ada data menu.
-                                        </td>
-                                    </tr>
-                                ` : this.menus.map(m => `
-                                    <tr>
-                                        <td style="width:60px;">
-                                            <img src="${m.ImageUrl || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80'}" 
-                                                 style="width:45px;height:45px;object-fit:cover;border-radius:6px;" 
-                                                 onerror="this.src='https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80'" />
-                                        </td>
-                                        <td>
-                                            <div style="font-weight:700;">${m.Name}</div>
-                                            <div style="font-size:0.75rem;color:var(--text-muted);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                                ${m.Description || '-'}
-                                            </div>
-                                        </td>
-                                        <td><span class="menu-category-tag" style="position:static;">${m.CategoryName}</span></td>
-                                        <td style="font-weight:700;color:var(--primary);">${App.formatRupiah(m.Price)}</td>
-                                        <td>${m.Stock || 100} porsi</td>
-                                        <td>
-                                            <span class="status-pill ${m.IsAvailable ? 'completed' : 'cancelled'}">
-                                                ${m.IsAvailable ? 'Tersedia' : 'Habis'}
-                                            </span>
-                                        </td>
-                                        <td style="text-align:right;">
-                                            <div style="display:inline-flex;gap:0.4rem;">
-                                                <button class="btn btn-outline btn-sm" onclick="MenuCrudPage.openDetailModal(${m.MenuId})">Detail</button>
-                                                <button class="btn btn-primary btn-sm" onclick="MenuCrudPage.openEditModal(${m.MenuId})">Edit</button>
-                                                <button class="btn btn-danger btn-sm" onclick="MenuCrudPage.deleteMenu(${m.MenuId}, '${(m.Name || '').replace(/'/g, "\\'")}')">Hapus</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `).join('')}
+                            <tbody id="menu-table-body">
+                                ${this.renderTableRowsHtml()}
                             </tbody>
                         </table>
                     </div>
 
                     <!-- Pagination & Limit Selector (Poin 7 PDF) -->
-                    <div class="pagination-container" style="border:none;background:transparent;padding:1rem 0 0 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
-                        <div style="display:flex;align-items:center;gap:0.75rem;color:var(--text-muted);font-size:0.85rem;">
-                            <span>Tampilkan:</span>
-                            <select class="filter-select" style="padding:0.25rem 0.6rem;font-size:0.85rem;height:auto;width:auto;" onchange="MenuCrudPage.setPageSize(this.value)">
-                                <option value="5" ${this.param.PageSize === 5 ? 'selected' : ''}>5 per halaman</option>
-                                <option value="10" ${this.param.PageSize === 10 ? 'selected' : ''}>10 per halaman</option>
-                                <option value="20" ${this.param.PageSize === 20 ? 'selected' : ''}>20 per halaman</option>
-                                <option value="50" ${this.param.PageSize === 50 ? 'selected' : ''}>50 per halaman</option>
-                            </select>
-                            <span>| Total: <b>${this.totalData}</b> Menu (Hal. <b>${this.param.PageNumber}</b>/<b>${this.totalPages}</b>)</span>
-                        </div>
-                        ${this.totalPages > 1 ? `
-                            <div class="page-numbers">
-                                <button class="page-btn" onclick="MenuCrudPage.setPage(${this.param.PageNumber - 1})" ${this.param.PageNumber <= 1 ? 'disabled' : ''}>&laquo;</button>
-                                ${Array.from({ length: this.totalPages }, (_, i) => i + 1).map(p => `
-                                    <button class="page-btn ${this.param.PageNumber === p ? 'active' : ''}" onclick="MenuCrudPage.setPage(${p})">${p}</button>
-                                `).join('')}
-                                <button class="page-btn" onclick="MenuCrudPage.setPage(${this.param.PageNumber + 1})" ${this.param.PageNumber >= this.totalPages ? 'disabled' : ''}>&raquo;</button>
-                            </div>
-                        ` : ''}
+                    <div id="menu-pagination-wrap" class="pagination-container" style="border:none;background:transparent;padding:1rem 0 0 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+                        ${this.renderPaginationHtml()}
                     </div>
                 </div>
 

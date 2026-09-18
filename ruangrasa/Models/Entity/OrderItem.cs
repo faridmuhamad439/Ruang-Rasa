@@ -33,6 +33,7 @@ namespace ruangrasa.Models.Entity
 
         public DateTime? UpdatedAt { get; set; }
 
+        [Newtonsoft.Json.JsonIgnore]
         [ForeignKey("OrderId")]
         public virtual Order Order { get; set; }
 

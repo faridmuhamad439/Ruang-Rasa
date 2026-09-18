@@ -12,8 +12,11 @@
 <configuration>
   <connectionStrings>
     <!-- Sesuaikan data source dengan instance SQL Server lokal Anda -->
-    <add name="DbPosContext" connectionString="data source=localhost\SQLEXPRESS;initial catalog=RuangrasaDb;Integrated Security=True;MultipleActiveResultSets=True;Connect Timeout=15;App=EntityFramework" providerName="System.Data.SqlClient" />
-    <add name="RuangrasaDbContext" connectionString="data source=localhost\SQLEXPRESS;initial catalog=RuangrasaDb;Integrated Security=True;MultipleActiveResultSets=True;Connect Timeout=15;App=EntityFramework" providerName="System.Data.SqlClient" />
+    <add name="DbPosContext" connectionString="data source=.\SQLEXPRESS;initial catalog=RuangrasaDb;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Connect Timeout=15;App=EntityFramework" providerName="System.Data.SqlClient" />
+    <add name="RuangrasaDbContext" connectionString="data source=.\SQLEXPRESS;initial catalog=RuangrasaDb;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Connect Timeout=15;App=EntityFramework" providerName="System.Data.SqlClient" />
+    <add name="DefaultConnection" connectionString="data source=.\SQLEXPRESS;initial catalog=RuangrasaDb;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Connect Timeout=15;App=EntityFramework" providerName="System.Data.SqlClient" />
+    <add name="DashboardLatihanEntities" connectionString="metadata=res://*/Models.Generator.Model1.csdl|res://*/Models.Generator.Model1.ssdl|res://*/Models.Generator.Model1.msl;provider=System.Data.SqlClient;provider connection string=&quot;data source=.\SQLEXPRESS;initial catalog=RuangrasaDb;integrated security=True;trustservercertificate=True;MultipleActiveResultSets=True;App=EntityFramework&quot;" providerName="System.Data.EntityClient" />
+    <add name="RuangrasaEntities" connectionString="metadata=res://*/Models.Generator.RuangrasaModel.csdl|res://*/Models.Generator.RuangrasaModel.ssdl|res://*/Models.Generator.RuangrasaModel.msl;provider=System.Data.SqlClient;provider connection string=&quot;data source=.\SQLEXPRESS;initial catalog=RuangrasaDb;integrated security=True;trustservercertificate=True;MultipleActiveResultSets=True;App=EntityFramework&quot;" providerName="System.Data.EntityClient" />
   </connectionStrings>
 
   <appSettings>

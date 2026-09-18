@@ -37,25 +37,36 @@ const PromoCrudPage = {
         this.render();
     },
 
-    async loadPromos() {
+    async loadPromos(renderFull = false) {
         try {
             const res = await Api.post('/promos/paging', this.param);
             if (res) {
                 this.promos = res.Data || res.data || [];
                 this.totalData = res.TotalData ?? res.totalData ?? this.promos.length;
                 this.totalPages = res.TotalPages ?? res.totalPages ?? 1;
-                this.render();
+                if (renderFull) {
+                    this.render();
+                } else {
+                    this.renderTableOnly();
+                }
             }
         } catch (err) {
             console.warn('Error load promos:', err);
-            this.render();
+            if (renderFull) {
+                this.render();
+            } else {
+                this.renderTableOnly();
+            }
         }
     },
 
     setSearch(kw) {
         this.param.SearchKeyword = kw;
         this.param.PageNumber = 1;
-        this.loadPromos();
+        if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = setTimeout(() => {
+            this.loadPromos(false);
+        }, 250);
     },
 
     setSorting(sortVal) {
@@ -63,19 +74,152 @@ const PromoCrudPage = {
         this.param.SortBy = by;
         this.param.SortDirection = dir;
         this.param.PageNumber = 1;
-        this.loadPromos();
+        this.loadPromos().then(() => this.renderTableOnly());
     },
 
     setPage(page) {
         if (page < 1 || page > this.totalPages) return;
         this.param.PageNumber = page;
-        this.loadPromos();
+        this.loadPromos().then(() => this.renderTableOnly());
     },
 
     setPageSize(size) {
         this.param.PageSize = parseInt(size) || 10;
         this.param.PageNumber = 1;
-        this.loadPromos();
+        this.loadPromos().then(() => this.renderTableOnly());
+    },
+
+    renderTableOnly() {
+        const tableBody = document.getElementById('promo-table-body');
+        const paginationFooter = document.getElementById('promo-pagination-footer');
+        if (!tableBody || !paginationFooter) {
+            this.render();
+            return;
+        }
+        tableBody.innerHTML = this.renderTableRowsHtml();
+        paginationFooter.innerHTML = this.renderPaginationHtml();
+    },
+
+    renderTableRowsHtml() {
+        if (this.promos.length === 0) {
+            return `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 3.5rem 1rem; color: var(--text-muted);">
+                        <span class="material-symbols-rounded" style="font-size: 40px; color: var(--border-medium); display: block; margin-bottom: 0.5rem;">sentiment_dissatisfied</span>
+                        Tidak ada data voucher promo ditemukan.
+                    </td>
+                </tr>
+            `;
+        }
+        return this.promos.map(p => {
+            const id = p.PromoId ?? p.promoId;
+            const code = p.PromoCode ?? p.promoCode;
+            const title = p.Title ?? p.title;
+            const desc = p.Description ?? p.description;
+            const discType = p.DiscountType ?? p.discountType ?? 'Percentage';
+            const discVal = Number(p.DiscountValue ?? p.discountValue ?? 0);
+            const minOrder = Number(p.MinOrderAmount ?? p.minOrderAmount ?? 0);
+            const maxDisc = p.MaxDiscountAmount ?? p.maxDiscountAmount;
+            const badge = p.BadgeText ?? p.badgeText ?? 'PROMO';
+            const isActive = (p.IsActive ?? p.isActive) !== false;
+
+            return `
+                <tr style="border-bottom: 1px solid var(--border-subtle); transition: var(--transition);">
+                    <td style="padding: 1rem 1.25rem;">
+                        <div style="font-family: monospace; font-weight: 800; font-size: 1rem; color: var(--primary); letter-spacing: 0.05em;">
+                            ${code}
+                        </div>
+                        <span class="promo-badge" style="padding: 0.15rem 0.5rem; font-size: 0.65rem; margin-top: 0.25rem; margin-bottom: 0;">
+                            ${badge}
+                        </span>
+                    </td>
+
+                    <td style="padding: 1rem 1.25rem; max-width: 280px;">
+                        <div style="font-weight: 700; color: var(--text-heading); font-size: 0.95rem;">${title}</div>
+                        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; line-height: 1.35;">${desc || '-'}</div>
+                    </td>
+
+                    <td style="padding: 1rem 1.25rem;">
+                        <div style="font-weight: 700; color: var(--accent); font-size: 1rem;">
+                            ${discType === 'Percentage' ? `${discVal}%` : App.formatRupiah(discVal)}
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            ${discType === 'Percentage' ? (maxDisc ? `Maks. ${App.formatRupiah(maxDisc)}` : 'Tanpa batas maks.') : 'Potongan Langsung'}
+                        </div>
+                    </td>
+
+                    <td style="padding: 1rem 1.25rem;">
+                        <div style="font-size: 0.85rem; color: var(--text-heading);">
+                            Min. Belanja: <strong>${minOrder > 0 ? App.formatRupiah(minOrder) : 'Tanpa Min.'}</strong>
+                        </div>
+                        ${code === 'FREESHIP' ? `
+                            <span style="font-size: 0.72rem; color: var(--info); font-weight: 600;">Khusus Layanan Delivery</span>
+                        ` : ''}
+                    </td>
+
+                    <td style="padding: 1rem 1.25rem; text-align: center;">
+                        <button type="button" 
+                                onclick="PromoCrudPage.toggleStatus(${id})" 
+                                style="background: transparent; border: none; cursor: pointer;" 
+                                title="Klik untuk ubah status">
+                            <span class="status-pill ${isActive ? 'ready' : 'cancelled'}" style="cursor: pointer;">
+                                ${isActive ? 'Aktif' : 'Nonaktif'}
+                            </span>
+                        </button>
+                    </td>
+
+                    <td style="padding: 1rem 1.25rem; text-align: right;">
+                        <div style="display: inline-flex; gap: 0.4rem;">
+                            <button class="btn btn-outline btn-sm" 
+                                    style="padding: 0.35rem 0.65rem;" 
+                                    onclick="PromoCrudPage.openEditModal(${id})" 
+                                    title="Edit Promo">
+                                <span class="material-symbols-rounded" style="font-size: 16px;">edit</span>
+                                Edit
+                            </button>
+                            <button class="btn btn-outline btn-sm" 
+                                    style="padding: 0.35rem 0.65rem; color: var(--danger); border-color: rgba(156,46,46,0.3);" 
+                                    onclick="PromoCrudPage.openDeleteModal(${id})" 
+                                    title="Hapus Promo">
+                                <span class="material-symbols-rounded" style="font-size: 16px;">delete</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    renderPaginationHtml() {
+        return `
+            <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+                <span>Tampilkan:</span>
+                <select class="select-control" style="padding: 0.25rem 0.6rem; font-size: 0.85rem; height: auto; width: auto;" onchange="PromoCrudPage.setPageSize(this.value)">
+                    <option value="5" ${this.param.PageSize === 5 ? 'selected' : ''}>5 per halaman</option>
+                    <option value="10" ${this.param.PageSize === 10 ? 'selected' : ''}>10 per halaman</option>
+                    <option value="20" ${this.param.PageSize === 20 ? 'selected' : ''}>20 per halaman</option>
+                    <option value="50" ${this.param.PageSize === 50 ? 'selected' : ''}>50 per halaman</option>
+                </select>
+                <span>| Menampilkan <b>${this.promos.length}</b> dari <b>${this.totalData}</b> voucher (Hal. <b>${this.param.PageNumber}</b>/<b>${this.totalPages}</b>)</span>
+            </div>
+            ${this.totalPages > 1 ? `
+                <div style="display: flex; gap: 0.35rem;">
+                    <button class="btn btn-outline btn-sm" 
+                            ${this.param.PageNumber <= 1 ? 'disabled' : ''} 
+                            onclick="PromoCrudPage.setPage(${this.param.PageNumber - 1})">
+                        <span class="material-symbols-rounded" style="font-size: 16px;">chevron_left</span>
+                    </button>
+                    <span style="display: flex; align-items: center; padding: 0 0.75rem; font-size: 0.85rem; font-weight: 600;">
+                        Halaman ${this.param.PageNumber} dari ${this.totalPages}
+                    </span>
+                    <button class="btn btn-outline btn-sm" 
+                            ${this.param.PageNumber >= this.totalPages ? 'disabled' : ''} 
+                            onclick="PromoCrudPage.setPage(${this.param.PageNumber + 1})">
+                        <span class="material-symbols-rounded" style="font-size: 16px;">chevron_right</span>
+                    </button>
+                </div>
+            ` : ''}
+        `;
     },
 
     openCreateModal() {
@@ -325,124 +469,15 @@ const PromoCrudPage = {
                                     <th style="padding: 1rem 1.25rem; text-align: right;">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${this.promos.length === 0 ? `
-                                    <tr>
-                                        <td colspan="6" style="text-align: center; padding: 3.5rem 1rem; color: var(--text-muted);">
-                                            <span class="material-symbols-rounded" style="font-size: 40px; color: var(--border-medium); display: block; margin-bottom: 0.5rem;">sentiment_dissatisfied</span>
-                                            Tidak ada data voucher promo ditemukan.
-                                        </td>
-                                    </tr>
-                                ` : this.promos.map(p => {
-                                    const id = p.PromoId ?? p.promoId;
-                                    const code = p.PromoCode ?? p.promoCode;
-                                    const title = p.Title ?? p.title;
-                                    const desc = p.Description ?? p.description;
-                                    const discType = p.DiscountType ?? p.discountType ?? 'Percentage';
-                                    const discVal = Number(p.DiscountValue ?? p.discountValue ?? 0);
-                                    const minOrder = Number(p.MinOrderAmount ?? p.minOrderAmount ?? 0);
-                                    const maxDisc = p.MaxDiscountAmount ?? p.maxDiscountAmount;
-                                    const badge = p.BadgeText ?? p.badgeText ?? 'PROMO';
-                                    const isActive = (p.IsActive ?? p.isActive) !== false;
-
-                                    return `
-                                        <tr style="border-bottom: 1px solid var(--border-subtle); transition: var(--transition);">
-                                            <td style="padding: 1rem 1.25rem;">
-                                                <div style="font-family: monospace; font-weight: 800; font-size: 1rem; color: var(--primary); letter-spacing: 0.05em;">
-                                                    ${code}
-                                                </div>
-                                                <span class="promo-badge" style="padding: 0.15rem 0.5rem; font-size: 0.65rem; margin-top: 0.25rem; margin-bottom: 0;">
-                                                    ${badge}
-                                                </span>
-                                            </td>
-
-                                            <td style="padding: 1rem 1.25rem; max-width: 280px;">
-                                                <div style="font-weight: 700; color: var(--text-heading); font-size: 0.95rem;">${title}</div>
-                                                <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; line-height: 1.35;">${desc || '-'}</div>
-                                            </td>
-
-                                            <td style="padding: 1rem 1.25rem;">
-                                                <div style="font-weight: 700; color: var(--accent); font-size: 1rem;">
-                                                    ${discType === 'Percentage' ? `${discVal}%` : App.formatRupiah(discVal)}
-                                                </div>
-                                                <div style="font-size: 0.75rem; color: var(--text-muted);">
-                                                    ${discType === 'Percentage' ? (maxDisc ? `Maks. ${App.formatRupiah(maxDisc)}` : 'Tanpa batas maks.') : 'Potongan Langsung'}
-                                                </div>
-                                            </td>
-
-                                            <td style="padding: 1rem 1.25rem;">
-                                                <div style="font-size: 0.85rem; color: var(--text-heading);">
-                                                    Min. Belanja: <strong>${minOrder > 0 ? App.formatRupiah(minOrder) : 'Tanpa Min.'}</strong>
-                                                </div>
-                                                ${code === 'FREESHIP' ? `
-                                                    <span style="font-size: 0.72rem; color: var(--info); font-weight: 600;">Khusus Layanan Delivery</span>
-                                                ` : ''}
-                                            </td>
-
-                                            <td style="padding: 1rem 1.25rem; text-align: center;">
-                                                <button type="button" 
-                                                        onclick="PromoCrudPage.toggleStatus(${id})" 
-                                                        style="background: transparent; border: none; cursor: pointer;" 
-                                                        title="Klik untuk ubah status">
-                                                    <span class="status-pill ${isActive ? 'ready' : 'cancelled'}" style="cursor: pointer;">
-                                                        ${isActive ? 'Aktif' : 'Nonaktif'}
-                                                    </span>
-                                                </button>
-                                            </td>
-
-                                            <td style="padding: 1rem 1.25rem; text-align: right;">
-                                                <div style="display: inline-flex; gap: 0.4rem;">
-                                                    <button class="btn btn-outline btn-sm" 
-                                                            style="padding: 0.35rem 0.65rem;" 
-                                                            onclick="PromoCrudPage.openEditModal(${id})" 
-                                                            title="Edit Promo">
-                                                        <span class="material-symbols-rounded" style="font-size: 16px;">edit</span>
-                                                        Edit
-                                                    </button>
-                                                    <button class="btn btn-outline btn-sm" 
-                                                            style="padding: 0.35rem 0.65rem; color: var(--danger); border-color: rgba(156,46,46,0.3);" 
-                                                            onclick="PromoCrudPage.openDeleteModal(${id})" 
-                                                            title="Hapus Promo">
-                                                        <span class="material-symbols-rounded" style="font-size: 16px;">delete</span>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `;
-                                }).join('')}
+                            <tbody id="promo-table-body">
+                                ${this.renderTableRowsHtml()}
                             </tbody>
                         </table>
                     </div>
 
                     <!-- Pagination Footer (Poin 7 PDF: Prev, Next, Nomor Halaman, Info Jumlah Data, Limit Selector) -->
-                    <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface); flex-wrap: wrap; gap: 1rem;">
-                        <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
-                            <span>Tampilkan:</span>
-                            <select class="select-control" style="padding: 0.25rem 0.6rem; font-size: 0.85rem; height: auto; width: auto;" onchange="PromoCrudPage.setPageSize(this.value)">
-                                <option value="5" ${this.param.PageSize === 5 ? 'selected' : ''}>5 per halaman</option>
-                                <option value="10" ${this.param.PageSize === 10 ? 'selected' : ''}>10 per halaman</option>
-                                <option value="20" ${this.param.PageSize === 20 ? 'selected' : ''}>20 per halaman</option>
-                                <option value="50" ${this.param.PageSize === 50 ? 'selected' : ''}>50 per halaman</option>
-                            </select>
-                            <span>| Menampilkan <b>${this.promos.length}</b> dari <b>${this.totalData}</b> voucher (Hal. <b>${this.param.PageNumber}</b>/<b>${this.totalPages}</b>)</span>
-                        </div>
-                        ${this.totalPages > 1 ? `
-                            <div style="display: flex; gap: 0.35rem;">
-                                <button class="btn btn-outline btn-sm" 
-                                        ${this.param.PageNumber <= 1 ? 'disabled' : ''} 
-                                        onclick="PromoCrudPage.setPage(${this.param.PageNumber - 1})">
-                                    <span class="material-symbols-rounded" style="font-size: 16px;">chevron_left</span>
-                                </button>
-                                <span style="display: flex; align-items: center; padding: 0 0.75rem; font-size: 0.85rem; font-weight: 600;">
-                                    Halaman ${this.param.PageNumber} dari ${this.totalPages}
-                                </span>
-                                <button class="btn btn-outline btn-sm" 
-                                        ${this.param.PageNumber >= this.totalPages ? 'disabled' : ''} 
-                                        onclick="PromoCrudPage.setPage(${this.param.PageNumber + 1})">
-                                    <span class="material-symbols-rounded" style="font-size: 16px;">chevron_right</span>
-                                </button>
-                            </div>
-                        ` : ''}
+                    <div id="promo-pagination-footer" style="padding: 1rem 1.25rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface); flex-wrap: wrap; gap: 1rem;">
+                        ${this.renderPaginationHtml()}
                     </div>
                 </div>
 

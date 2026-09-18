@@ -34,6 +34,7 @@ namespace ruangrasa.Models.Entity
 
         public DateTime? UpdatedAt { get; set; }
 
+        [Newtonsoft.Json.JsonIgnore]
         public virtual ICollection<Menu> Menus { get; set; }
     }
 }

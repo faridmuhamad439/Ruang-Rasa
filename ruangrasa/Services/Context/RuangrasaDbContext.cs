@@ -10,6 +10,8 @@ namespace ruangrasa.Services.Context
             : base("name=RuangrasaDbContext")
         {
             this.Database.CommandTimeout = 600;
+            this.Configuration.LazyLoadingEnabled = false;
+            this.Configuration.ProxyCreationEnabled = false;
             // Nonaktifkan migrasi otomatis karena database sudah dibuat langsung di SSMS
             Database.SetInitializer<RuangrasaDbContext>(null);
         }

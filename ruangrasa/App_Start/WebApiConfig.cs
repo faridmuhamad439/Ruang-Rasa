@@ -11,6 +11,13 @@ namespace ruangrasa
         {
             // Web API configuration and services
 
+            // JSON Serialization Settings (Handle Reference Loops & Indentation)
+            var json = config.Formatters.JsonFormatter;
+            json.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+            json.SerializerSettings.PreserveReferencesHandling = Newtonsoft.Json.PreserveReferencesHandling.None;
+            json.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Include;
+            json.SerializerSettings.ContractResolver = new Newtonsoft.Json.Serialization.DefaultContractResolver();
+
             // Global Error Handling (Ketentuan Backend #7): 500 selalu JSON konsisten
             config.Filters.Add(new GlobalApiExceptionAttribute());
 

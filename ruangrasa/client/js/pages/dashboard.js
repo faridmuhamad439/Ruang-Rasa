@@ -20,6 +20,42 @@ const DashboardPage = {
     pollingTimer: null,
     isLoading: false,
 
+    onSearchOrders(kw) {
+        this.searchKeyword = kw;
+        if (this.orderSearchDebounceTimer) clearTimeout(this.orderSearchDebounceTimer);
+        this.orderSearchDebounceTimer = setTimeout(() => {
+            const tbody = document.getElementById('dashboard-orders-tbody');
+            const countBadge = document.getElementById('dashboard-orders-count-badge');
+            if (tbody) {
+                const { displayOrders, filteredOrders, isFiltered, role } = this.getFilteredOrdersData();
+                if (countBadge) {
+                    countBadge.innerHTML = `Menampilkan <b>${displayOrders.length}</b> dari <b>${filteredOrders.length}</b> Pesanan`;
+                }
+                tbody.innerHTML = this.renderOrdersTableRowsHtml(displayOrders, isFiltered, role);
+            } else {
+                this.render();
+            }
+        }, 150);
+    },
+
+    onSearchStaff(kw) {
+        this.staffSearchKeyword = kw;
+        if (this.staffSearchDebounceTimer) clearTimeout(this.staffSearchDebounceTimer);
+        this.staffSearchDebounceTimer = setTimeout(() => {
+            const tbody = document.getElementById('dashboard-staff-tbody');
+            const countBadge = document.getElementById('dashboard-staff-count-badge');
+            if (tbody) {
+                const { filteredStaff, isFiltered } = this.getFilteredStaffData();
+                if (countBadge) {
+                    countBadge.innerHTML = `Menampilkan <b>${filteredStaff.length}</b> dari <b>${this.staffList.length}</b> Anggota Staf`;
+                }
+                tbody.innerHTML = this.renderStaffTableRowsHtml(filteredStaff, isFiltered);
+            } else {
+                this.render();
+            }
+        }, 150);
+    },
+
     async init() {
         this.user = Api.getCurrentUser();
         if (!this.user) {
@@ -564,8 +600,20 @@ const DashboardPage = {
         `;
     },
 
-    renderOrdersTab(filteredOrders, role) {
-        // Terapkan filter status, layanan, dan keyword pencarian
+    getFilteredOrdersData() {
+        const role = (this.user?.role || '').toLowerCase();
+        let list = this.salesList || [];
+        if (role === 'kasir') {
+            list = list.filter(o => ['PendingPayment', 'WaitingConfirmation', 'Confirmed', 'Processing', 'Cooking', 'Ready', 'ReadyToServe', 'ReadyForPickup', 'ReadyForDelivery', 'Delivering', 'Delivered', 'Completed', 'Cancelled'].includes(o.OrderStatus));
+        } else if (role === 'dapur') {
+            list = list.filter(o => ['Confirmed', 'Cooking', 'Ready', 'ReadyToServe', 'ReadyForPickup', 'ReadyForDelivery'].includes(o.OrderStatus));
+        } else if (role === 'waiter') {
+            list = list.filter(o => o.OrderType === 'DineIn' || ['ReadyToServe', 'ReadyForPickup', 'Completed'].includes(o.OrderStatus));
+        } else if (role === 'driver') {
+            list = list.filter(o => o.OrderType === 'Delivery');
+        }
+
+        const filteredOrders = list;
         let displayOrders = filteredOrders;
         if (this.statusFilter && this.statusFilter !== 'all') {
             displayOrders = displayOrders.filter(o => o.OrderStatus === this.statusFilter);
@@ -582,8 +630,67 @@ const DashboardPage = {
                 (o.TableNumber && o.TableNumber.toString().toLowerCase().includes(q))
             );
         }
+        const isFiltered = (this.statusFilter !== 'all' || this.typeFilter !== 'all' || !!this.searchKeyword);
+        return { displayOrders, filteredOrders, isFiltered, role };
+    },
 
-        const isFiltered = (this.statusFilter !== 'all' || this.typeFilter !== 'all' || this.searchKeyword);
+    renderOrdersTableRowsHtml(displayOrders, isFiltered, role) {
+        if (displayOrders.length === 0) {
+            return `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <span class="material-symbols-rounded" style="font-size: 36px; display: block; margin-bottom: 0.5rem; opacity: 0.5;">search_off</span>
+                        ${isFiltered ? 'Tidak ada pesanan yang sesuai dengan filter pencarian.' : 'Belum ada antrean pesanan pada kategori peran Anda saat ini.'}
+                    </td>
+                </tr>
+            `;
+        }
+        return displayOrders.map(o => `
+            <tr>
+                <td>
+                    <b style="cursor: pointer; color: var(--primary);" onclick='DashboardPage.openOrderItemsModal(${JSON.stringify(o).replace(/'/g, "&apos;")})'>
+                        #${o.OrderNumber}
+                    </b>
+                    <div style="font-size: 0.72rem; color: var(--accent); cursor: pointer;" onclick='DashboardPage.openOrderItemsModal(${JSON.stringify(o).replace(/'/g, "&apos;")})'>
+                        Lihat Menu (${(o.Items || []).length})
+                    </div>
+                </td>
+                <td>
+                    <div style="font-weight: 600;">${(o.GuestName && o.GuestName.trim()) || (o.Notes && o.Notes.match(/\[Nama Pemesan:\s*([^\]]+)\]/) ? o.Notes.match(/\[Nama Pemesan:\s*([^\]]+)\]/)[1] : '') || (o.CustomerName && o.CustomerName !== 'Super Admin Ruang Rasa' ? o.CustomerName : (o.CustomerId === 1 ? 'Tamu / Guest' : (o.CustomerName || 'Tamu / Guest')))}</div>
+                    ${o.PaymentProofUrl ? `
+                        <span style="display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.72rem; color: var(--info); cursor: pointer; text-decoration: underline;" onclick="DashboardPage.openPaymentProofModal(${o.OrderId}, '${o.OrderNumber}', '${o.PaymentProofUrl}')">
+                            <span class="material-symbols-rounded" style="font-size: 13px;">attach_file</span> Bukti Ada
+                        </span>
+                    ` : ''}
+                </td>
+                <td>
+                    <span style="font-weight: 600;">${o.OrderType}</span>
+                    ${o.TableNumber && o.TableNumber !== '-' ? `
+                        <div style="background: #e8f5e9; color: #2e7d32; font-weight: 700; font-size: 0.76rem; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px;">
+                            <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">location_on</span> Meja ${o.TableNumber}
+                        </div>
+                    ` : ''}
+                </td>
+                <td style="font-weight: 700; color: var(--text-heading);">${App.formatRupiah(o.TotalAmount)}</td>
+                <td style="font-size: 0.85rem;">${o.PaymentMethod}</td>
+                <td>
+                    <span class="status-pill ${o.OrderStatus.toLowerCase()}">${this.formatStatusLabel(o.OrderStatus)}</span>
+                    ${o.CancelReason ? `
+                        <div style="font-size: 0.72rem; color: var(--danger); margin-top: 2px;">"${o.CancelReason}"</div>
+                    ` : ''}
+                </td>
+                <td style="font-size: 0.8rem; color: var(--text-muted);">
+                    ${new Date(o.OrderDate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                </td>
+                <td style="text-align: right;">
+                    ${this.renderActions(o, role)}
+                </td>
+            </tr>
+        `).join('');
+    },
+
+    renderOrdersTab(filteredOrders, role) {
+        const { displayOrders, isFiltered } = this.getFilteredOrdersData();
 
         return `
             <div class="card">
@@ -598,7 +705,7 @@ const DashboardPage = {
                               'Seluruh Transaksi & Pesanan'}
                         </h3>
                     </div>
-                    <span style="font-size: 0.84rem; color: var(--text-muted); font-weight: 600;">
+                    <span id="dashboard-orders-count-badge" style="font-size: 0.84rem; color: var(--text-muted); font-weight: 600;">
                         Menampilkan <b>${displayOrders.length}</b> dari <b>${filteredOrders.length}</b> Pesanan
                     </span>
                 </div>
@@ -607,9 +714,9 @@ const DashboardPage = {
                 <div class="filter-toolbar" style="margin-bottom: 1.25rem;">
                     <div class="search-field" style="flex: 1; min-width: 240px;">
                         <span class="material-symbols-rounded search-icon">search</span>
-                        <input type="text" placeholder="Cari no. pesanan, pelanggan, meja..." 
+                        <input type="text" id="dashboard-orders-search-input" placeholder="Cari no. pesanan, pelanggan, meja..." 
                                value="${this.searchKeyword}" 
-                               oninput="DashboardPage.searchKeyword = this.value.trim(); DashboardPage.render();" />
+                               oninput="DashboardPage.onSearchOrders(this.value)" />
                     </div>
 
                     <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
@@ -658,56 +765,8 @@ const DashboardPage = {
                                 <th style="text-align: right;">Aksi Tindakan Petugas</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${displayOrders.length === 0 ? `
-                                <tr>
-                                    <td colspan="8" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                                        <span class="material-symbols-rounded" style="font-size: 36px; display: block; margin-bottom: 0.5rem; opacity: 0.5;">search_off</span>
-                                        ${isFiltered ? 'Tidak ada pesanan yang sesuai dengan filter pencarian.' : 'Belum ada antrean pesanan pada kategori peran Anda saat ini.'}
-                                    </td>
-                                </tr>
-                            ` : displayOrders.map(o => `
-                                <tr>
-                                    <td>
-                                        <b style="cursor: pointer; color: var(--primary);" onclick='DashboardPage.openOrderItemsModal(${JSON.stringify(o).replace(/'/g, "&apos;")})'>
-                                            #${o.OrderNumber}
-                                        </b>
-                                        <div style="font-size: 0.72rem; color: var(--accent); cursor: pointer;" onclick='DashboardPage.openOrderItemsModal(${JSON.stringify(o).replace(/'/g, "&apos;")})'>
-                                            Lihat Menu (${(o.Items || []).length})
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style="font-weight: 600;">${(o.GuestName && o.GuestName.trim()) || (o.Notes && o.Notes.match(/\[Nama Pemesan:\s*([^\]]+)\]/) ? o.Notes.match(/\[Nama Pemesan:\s*([^\]]+)\]/)[1] : '') || (o.CustomerName && o.CustomerName !== 'Super Admin Ruang Rasa' ? o.CustomerName : (o.CustomerId === 1 ? 'Tamu / Guest' : (o.CustomerName || 'Tamu / Guest')))}</div>
-                                        ${o.PaymentProofUrl ? `
-                                            <span style="display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.72rem; color: var(--info); cursor: pointer; text-decoration: underline;" onclick="DashboardPage.openPaymentProofModal(${o.OrderId}, '${o.OrderNumber}', '${o.PaymentProofUrl}')">
-                                                <span class="material-symbols-rounded" style="font-size: 13px;">attach_file</span> Bukti Ada
-                                            </span>
-                                        ` : ''}
-                                    </td>
-                                    <td>
-                                        <span style="font-weight: 600;">${o.OrderType}</span>
-                                        ${o.TableNumber && o.TableNumber !== '-' ? `
-                                            <div style="background: #e8f5e9; color: #2e7d32; font-weight: 700; font-size: 0.76rem; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px;">
-                                                <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">location_on</span> Meja ${o.TableNumber}
-                                            </div>
-                                        ` : ''}
-                                    </td>
-                                    <td style="font-weight: 700; color: var(--text-heading);">${App.formatRupiah(o.TotalAmount)}</td>
-                                    <td style="font-size: 0.85rem;">${o.PaymentMethod}</td>
-                                    <td>
-                                        <span class="status-pill ${o.OrderStatus.toLowerCase()}">${this.formatStatusLabel(o.OrderStatus)}</span>
-                                        ${o.CancelReason ? `
-                                            <div style="font-size: 0.72rem; color: var(--danger); margin-top: 2px;">"${o.CancelReason}"</div>
-                                        ` : ''}
-                                    </td>
-                                    <td style="font-size: 0.8rem; color: var(--text-muted);">
-                                        ${new Date(o.OrderDate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                                    </td>
-                                    <td style="text-align: right;">
-                                        ${this.renderActions(o, role)}
-                                    </td>
-                                </tr>
-                            `).join('')}
+                        <tbody id="dashboard-orders-tbody">
+                            ${this.renderOrdersTableRowsHtml(displayOrders, isFiltered, role)}
                         </tbody>
                     </table>
                 </div>
@@ -941,10 +1000,8 @@ const DashboardPage = {
         `;
     },
 
-    renderStaffTab() {
+    getFilteredStaffData() {
         const staff = this.staffList || [];
-        
-        // Filter search keyword
         let filteredStaff = staff;
         if (this.staffSearchKeyword) {
             const q = this.staffSearchKeyword.toLowerCase();
@@ -956,12 +1013,10 @@ const DashboardPage = {
             );
         }
 
-        // Filter role
         if (this.staffRoleFilter && this.staffRoleFilter !== 'all') {
             filteredStaff = filteredStaff.filter(s => (s.RoleName || '').toLowerCase() === this.staffRoleFilter.toLowerCase());
         }
 
-        // Filter status
         if (this.staffStatusFilter && this.staffStatusFilter !== 'all') {
             if (this.staffStatusFilter === 'active') {
                 filteredStaff = filteredStaff.filter(s => s.IsActive);
@@ -970,7 +1025,125 @@ const DashboardPage = {
             }
         }
 
-        const isFiltered = (this.staffSearchKeyword || this.staffRoleFilter !== 'all' || this.staffStatusFilter !== 'all');
+        const isFiltered = (!!this.staffSearchKeyword || this.staffRoleFilter !== 'all' || this.staffStatusFilter !== 'all');
+        return { filteredStaff, isFiltered, staff };
+    },
+
+    renderStaffTableRowsHtml(filteredStaff, isFiltered) {
+        if (filteredStaff.length === 0) {
+            return `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <span class="material-symbols-rounded" style="font-size: 36px; display: block; margin-bottom: 0.5rem; opacity: 0.5;">person_off</span>
+                        ${isFiltered ? 'Tidak ada staf yang sesuai dengan filter pencarian.' : 'Belum ada akun staf yang didaftarkan ke sistem.'}
+                    </td>
+                </tr>
+            `;
+        }
+        return filteredStaff.map(stf => {
+            const rName = stf.RoleName || 'Staff';
+            const rLower = rName.toLowerCase();
+            const initial = (stf.FullName || 'U').charAt(0).toUpperCase();
+            const waNumber = (stf.PhoneNumber || '').replace(/[^0-9]/g, '');
+            const formattedWa = waNumber.startsWith('0') ? '62' + waNumber.substring(1) : waNumber;
+            
+            // Warna avatar berdasarkan role
+            let avatarBg = '#4a2c20';
+            let roleIcon = 'badge';
+            if (rLower === 'kasir') { avatarBg = '#1976d2'; roleIcon = 'point_of_sale'; }
+            else if (rLower === 'dapur' || rLower === 'barista') { avatarBg = '#e65100'; roleIcon = 'skillet'; }
+            else if (rLower === 'waiter') { avatarBg = '#2e7d32'; roleIcon = 'table_restaurant'; }
+            else if (rLower === 'driver') { avatarBg = '#6a1b9a'; roleIcon = 'two_wheeler'; }
+            else if (rLower === 'owner') { avatarBg = '#c2185b'; roleIcon = 'workspace_premium'; }
+            else if (rLower === 'admin') { avatarBg = '#8d6e63'; roleIcon = 'admin_panel_settings'; }
+
+            return `
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 38px; height: 38px; border-radius: 50%; background: ${avatarBg}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.12);">
+                                ${initial}
+                            </div>
+                            <div>
+                                <div style="font-weight: 700; color: var(--text-heading); font-size: 0.95rem;">
+                                    ${stf.FullName}
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.35rem;">
+                                    <span>ID: #${stf.UserId}</span> • <span>${stf.Email}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td>
+                        <span class="role-badge ${rLower}" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+                            <span class="material-symbols-rounded" style="font-size: 14px;">${roleIcon}</span>
+                            ${rName}
+                        </span>
+                    </td>
+
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <span style="font-size: 0.85rem; font-weight: 500;">${stf.PhoneNumber || '-'}</span>
+                            ${waNumber ? `
+                                <a href="https://wa.me/${formattedWa}" target="_blank" rel="noopener noreferrer" 
+                                   style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #25d366; color: #ffffff; text-decoration: none;" 
+                                   title="Chat WhatsApp ${stf.FullName}">
+                                    <span class="material-symbols-rounded" style="font-size: 14px;">chat</span>
+                                </a>
+                            ` : ''}
+                        </div>
+                    </td>
+
+                    <td style="text-align: center;">
+                        <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-heading);">
+                            ${stf.TotalOrdersHandled || 0} <span style="font-size: 0.75rem; font-weight: 400; color: var(--text-muted);">pesanan</span>
+                        </div>
+                        <div style="font-size: 0.72rem; color: var(--success); font-weight: 600;">
+                            ${rLower === 'waiter' ? `${stf.TotalOrdersServed || 0} meja disajikan` :
+                              rLower === 'driver' ? `${stf.TotalOrdersDelivered || 0} trip diantar` :
+                              rLower === 'kasir' ? `${stf.TotalOrdersCompleted || 0} lunas (${App.formatRupiah(stf.TotalRevenueHandled || 0)})` :
+                              `${stf.TotalOrdersCompleted || 0} selesai`}
+                        </div>
+                    </td>
+
+                    <td style="text-align: center;">
+                        <button type="button" 
+                                class="btn btn-sm" 
+                                style="padding: 3px 10px; font-size: 0.76rem; font-weight: 700; border-radius: var(--radius-pill); cursor: pointer; transition: all 0.2s ease; ${stf.IsActive ? 'background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;' : 'background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;'}"
+                                onclick="DashboardPage.toggleStaffStatus(${stf.UserId})"
+                                title="Klik untuk mengubah status aktif/nonaktif">
+                            <span class="material-symbols-rounded" style="font-size: 13px; vertical-align: middle;">${stf.IsActive ? 'check_circle' : 'do_not_disturb_on'}</span>
+                            ${stf.IsActive ? 'Aktif Bertugas' : 'Nonaktif'}
+                        </button>
+                    </td>
+
+                    <td>
+                        <div style="font-size: 0.8rem; color: var(--text-heading); font-weight: 500;">
+                            ${stf.CreatedAt ? new Date(stf.CreatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                        </div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">
+                            ${stf.LastActiveAt ? `Terakhir aktif: ${new Date(stf.LastActiveAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : 'Belum ada transaksi'}
+                        </div>
+                    </td>
+
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 0.35rem; align-items: center;">
+                            <button type="button" class="btn btn-outline btn-sm" style="padding: 4px 8px;" onclick='DashboardPage.openEditStaffModal(${JSON.stringify(stf).replace(/'/g, "&apos;")})' title="Edit Data Staf">
+                                <span class="material-symbols-rounded" style="font-size: 15px; color: var(--primary);">edit</span>
+                            </button>
+                            <button type="button" class="btn btn-outline btn-sm" style="padding: 4px 8px; color: var(--danger); border-color: #ffcdd2;" onclick="DashboardPage.openDeleteStaffModal(${stf.UserId}, '${stf.FullName.replace(/'/g, "\\'")}')" title="Hapus Akun Staf">
+                                <span class="material-symbols-rounded" style="font-size: 15px;">delete</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    renderStaffTab() {
+        const { filteredStaff, isFiltered, staff } = this.getFilteredStaffData();
 
         // Statistik Peran
         const kasirList = staff.filter(s => s.RoleName === 'Kasir');
@@ -1048,7 +1221,7 @@ const DashboardPage = {
                                     Direktori & Manajemen Staf Terdaftar
                                 </h3>
                                 <p style="margin: 0; font-size: 0.82rem; color: var(--text-muted);">
-                                    Total <b>${staff.length}</b> akun staf terdaftar (${activeStaffCount} staf aktif bertugas).
+                                    Total <b id="dashboard-staff-count-total">${staff.length}</b> akun staf terdaftar (<span id="dashboard-staff-count-active">${activeStaffCount}</span> staf aktif bertugas).
                                 </p>
                             </div>
                         </div>
@@ -1068,9 +1241,9 @@ const DashboardPage = {
                     <div class="filter-toolbar" style="margin-bottom: 1.25rem;">
                         <div class="search-field" style="flex: 1; min-width: 240px;">
                             <span class="material-symbols-rounded search-icon">search</span>
-                            <input type="text" placeholder="Cari nama staf, email, no. HP, role..." 
+                            <input type="text" id="dashboard-staff-search-input" placeholder="Cari nama staf, email, no. HP, role..." 
                                    value="${this.staffSearchKeyword}" 
-                                   oninput="DashboardPage.staffSearchKeyword = this.value.trim(); DashboardPage.render();" />
+                                   oninput="DashboardPage.onSearchStaff(this.value)" />
                         </div>
 
                         <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
@@ -1112,114 +1285,8 @@ const DashboardPage = {
                                     <th style="text-align: right;">Aksi Manajemen</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${filteredStaff.length === 0 ? `
-                                    <tr>
-                                        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                                            <span class="material-symbols-rounded" style="font-size: 36px; display: block; margin-bottom: 0.5rem; opacity: 0.5;">person_off</span>
-                                            ${isFiltered ? 'Tidak ada staf yang sesuai dengan filter pencarian.' : 'Belum ada akun staf yang didaftarkan ke sistem.'}
-                                        </td>
-                                    </tr>
-                                ` : filteredStaff.map(stf => {
-                                    const rName = stf.RoleName || 'Staff';
-                                    const rLower = rName.toLowerCase();
-                                    const initial = (stf.FullName || 'U').charAt(0).toUpperCase();
-                                    const waNumber = (stf.PhoneNumber || '').replace(/[^0-9]/g, '');
-                                    const formattedWa = waNumber.startsWith('0') ? '62' + waNumber.substring(1) : waNumber;
-                                    
-                                    // Warna avatar berdasarkan role
-                                    let avatarBg = '#4a2c20';
-                                    let roleIcon = 'badge';
-                                    if (rLower === 'kasir') { avatarBg = '#1976d2'; roleIcon = 'point_of_sale'; }
-                                    else if (rLower === 'dapur' || rLower === 'barista') { avatarBg = '#e65100'; roleIcon = 'skillet'; }
-                                    else if (rLower === 'waiter') { avatarBg = '#2e7d32'; roleIcon = 'table_restaurant'; }
-                                    else if (rLower === 'driver') { avatarBg = '#6a1b9a'; roleIcon = 'two_wheeler'; }
-                                    else if (rLower === 'owner') { avatarBg = '#c2185b'; roleIcon = 'workspace_premium'; }
-                                    else if (rLower === 'admin') { avatarBg = '#8d6e63'; roleIcon = 'admin_panel_settings'; }
-
-                                    return `
-                                        <tr>
-                                            <td>
-                                                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                                    <div style="width: 38px; height: 38px; border-radius: 50%; background: ${avatarBg}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.12);">
-                                                        ${initial}
-                                                    </div>
-                                                    <div>
-                                                        <div style="font-weight: 700; color: var(--text-heading); font-size: 0.95rem;">
-                                                            ${stf.FullName}
-                                                        </div>
-                                                        <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.35rem;">
-                                                            <span>ID: #${stf.UserId}</span> • <span>${stf.Email}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            <td>
-                                                <span class="role-badge ${rLower}" style="display: inline-flex; align-items: center; gap: 0.25rem;">
-                                                    <span class="material-symbols-rounded" style="font-size: 14px;">${roleIcon}</span>
-                                                    ${rName}
-                                                </span>
-                                            </td>
-
-                                            <td>
-                                                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                                                    <span style="font-size: 0.85rem; font-weight: 500;">${stf.PhoneNumber || '-'}</span>
-                                                    ${waNumber ? `
-                                                        <a href="https://wa.me/${formattedWa}" target="_blank" rel="noopener noreferrer" 
-                                                           style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #25d366; color: #ffffff; text-decoration: none;" 
-                                                           title="Chat WhatsApp ${stf.FullName}">
-                                                            <span class="material-symbols-rounded" style="font-size: 14px;">chat</span>
-                                                        </a>
-                                                    ` : ''}
-                                                </div>
-                                            </td>
-
-                                            <td style="text-align: center;">
-                                                <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-heading);">
-                                                    ${stf.TotalOrdersHandled || 0} <span style="font-size: 0.75rem; font-weight: 400; color: var(--text-muted);">pesanan</span>
-                                                </div>
-                                                <div style="font-size: 0.72rem; color: var(--success); font-weight: 600;">
-                                                    ${rLower === 'waiter' ? `${stf.TotalOrdersServed || 0} meja disajikan` :
-                                                      rLower === 'driver' ? `${stf.TotalOrdersDelivered || 0} trip diantar` :
-                                                      rLower === 'kasir' ? `${stf.TotalOrdersCompleted || 0} lunas (${App.formatRupiah(stf.TotalRevenueHandled || 0)})` :
-                                                      `${stf.TotalOrdersCompleted || 0} selesai`}
-                                                </div>
-                                            </td>
-
-                                            <td style="text-align: center;">
-                                                <button type="button" 
-                                                        class="btn btn-sm" 
-                                                        style="padding: 3px 10px; font-size: 0.76rem; font-weight: 700; border-radius: var(--radius-pill); cursor: pointer; transition: all 0.2s ease; ${stf.IsActive ? 'background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;' : 'background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;'}"
-                                                        onclick="DashboardPage.toggleStaffStatus(${stf.UserId})"
-                                                        title="Klik untuk mengubah status aktif/nonaktif">
-                                                    <span class="material-symbols-rounded" style="font-size: 13px; vertical-align: middle;">${stf.IsActive ? 'check_circle' : 'do_not_disturb_on'}</span>
-                                                    ${stf.IsActive ? 'Aktif Bertugas' : 'Nonaktif'}
-                                                </button>
-                                            </td>
-
-                                            <td>
-                                                <div style="font-size: 0.8rem; color: var(--text-heading); font-weight: 500;">
-                                                    ${stf.CreatedAt ? new Date(stf.CreatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                                                </div>
-                                                <div style="font-size: 0.72rem; color: var(--text-muted);">
-                                                    ${stf.LastActiveAt ? `Terakhir aktif: ${new Date(stf.LastActiveAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : 'Belum ada transaksi'}
-                                                </div>
-                                            </td>
-
-                                            <td style="text-align: right;">
-                                                <div style="display: inline-flex; gap: 0.35rem; align-items: center;">
-                                                    <button type="button" class="btn btn-outline btn-sm" style="padding: 4px 8px;" onclick='DashboardPage.openEditStaffModal(${JSON.stringify(stf).replace(/'/g, "&apos;")})' title="Edit Data Staf">
-                                                        <span class="material-symbols-rounded" style="font-size: 15px; color: var(--primary);">edit</span>
-                                                    </button>
-                                                    <button type="button" class="btn btn-outline btn-sm" style="padding: 4px 8px; color: var(--danger); border-color: #ffcdd2;" onclick="DashboardPage.openDeleteStaffModal(${stf.UserId}, '${stf.FullName.replace(/'/g, "\\'")}')" title="Hapus Akun Staf">
-                                                        <span class="material-symbols-rounded" style="font-size: 15px;">delete</span>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `;
-                                }).join('')}
+                            <tbody id="dashboard-staff-tbody">
+                                ${this.renderStaffTableRowsHtml(filteredStaff, isFiltered)}
                             </tbody>
                         </table>
                     </div>

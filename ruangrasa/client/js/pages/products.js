@@ -123,7 +123,22 @@ const ProductsPage = {
             this.loadMenus(false)
         ]);
 
-        this.render();
+        this.updateCategorySelect();
+        this.renderGrid();
+    },
+
+    updateCategorySelect() {
+        const catSelect = document.getElementById('products-category-select');
+        if (catSelect) {
+            catSelect.innerHTML = `
+                <option value="">Semua Kategori</option>
+                ${this.categories.map(c => `
+                    <option value="${c.CategoryName}" ${this.param.Category === c.CategoryName ? 'selected' : ''}>
+                        ${c.CategoryName}
+                    </option>
+                `).join('')}
+            `;
+        }
     },
 
     async loadCategories() {
@@ -140,7 +155,7 @@ const ProductsPage = {
     async loadMenus(showLoading = true) {
         if (showLoading) {
             this.isLoading = true;
-            this.render();
+            this.renderGrid();
         }
 
         try {
@@ -197,14 +212,14 @@ const ProductsPage = {
         }
 
         this.searchDebounceTimer = setTimeout(() => {
-            this.loadMenus(true).then(() => this.render());
+            this.loadMenus(true).then(() => this.renderGrid());
         }, 250);
     },
 
     setCategory(cat) {
         this.param.Category = cat;
         this.param.PageNumber = 1;
-        this.loadMenus(true).then(() => this.render());
+        this.loadMenus(true).then(() => this.renderGrid());
     },
 
     setSorting(sortVal) {
@@ -212,19 +227,19 @@ const ProductsPage = {
         this.param.SortBy = by;
         this.param.SortDirection = dir;
         this.param.PageNumber = 1;
-        this.loadMenus(true).then(() => this.render());
+        this.loadMenus(true).then(() => this.renderGrid());
     },
 
     setPageSize(size) {
         this.param.PageSize = parseInt(size) || 8;
         this.param.PageNumber = 1;
-        this.loadMenus(true).then(() => this.render());
+        this.loadMenus(true).then(() => this.renderGrid());
     },
 
     setPage(page) {
         if (page < 1 || page > this.totalPages) return;
         this.param.PageNumber = page;
-        this.loadMenus(true).then(() => this.render());
+        this.loadMenus(true).then(() => this.renderGrid());
     },
 
     addToCart(menuId) {
@@ -248,6 +263,131 @@ const ProductsPage = {
         }
     },
 
+    renderGrid() {
+        const gridContainer = document.getElementById('products-grid-container');
+        const paginationContainer = document.getElementById('products-pagination-container');
+        const countBadge = document.getElementById('products-count-badge');
+
+        if (!gridContainer || !paginationContainer) {
+            this.render();
+            return;
+        }
+
+        if (countBadge) {
+            countBadge.innerHTML = `Menampilkan <b>${this.totalData}</b> Produk`;
+        }
+        gridContainer.innerHTML = this.renderGridHtml();
+        paginationContainer.innerHTML = this.renderPaginationHtml();
+    },
+
+    renderGridHtml() {
+        if (this.isLoading) {
+            return `
+                <div style="text-align: center; padding: 4rem 1rem; color: var(--text-muted); grid-column: 1 / -1;">
+                    <div class="loading-spinner" style="margin-bottom: 1rem; width: 32px; height: 32px; border-width: 3px;"></div>
+                    <p style="font-weight: 600;">Memuat katalog produk...</p>
+                </div>
+            `;
+        }
+
+        if (this.menus.length === 0) {
+            return `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
+                    <span class="material-symbols-rounded" style="font-size: 48px; color: var(--text-light); margin-bottom: 0.5rem;">search_off</span>
+                    <p style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--text-heading);">Tidak ada produk yang cocok dengan pencarian "${this.escapeHtml(this.param.SearchKeyword)}".</p>
+                    <button class="btn btn-outline btn-sm" onclick="ProductsPage.resetFilters();">
+                        Reset Filter Pencarian
+                    </button>
+                </div>
+            `;
+        }
+
+        return this.menus.map((m, idx) => `
+            <div class="menu-card card-hover-lift animate-fade-in-up" style="animation-delay: ${(idx % 8) * 0.05}s; ${!m.IsAvailable ? 'opacity: 0.7;' : ''}">
+                <div class="menu-image-container product-card-visual">
+                    <img src="${m.ImageUrl || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80'}" 
+                         alt="${m.Name}" 
+                         onerror="this.src='https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80'" />
+                    <span class="category-chip">${m.CategoryName}</span>
+                    ${!m.IsAvailable ? '<span class="status-pill cancelled" style="position:absolute;top:10px;right:10px;">Habis</span>' : ''}
+                </div>
+                <div class="menu-body">
+                    <h3 class="menu-name">${m.Name}</h3>
+                    <p class="menu-desc">${m.Description || 'Diracik dengan biji kopi dan bahan baku berkualitas tinggi.'}</p>
+                    <div class="menu-card-footer">
+                        <div class="menu-price">${App.formatRupiah(m.Price)}</div>
+                        ${m.IsAvailable ? `
+                            <div class="menu-actions-group">
+                                <button class="btn btn-outline btn-sm btn-cart" 
+                                        onclick="ProductsPage.addToCart(${m.MenuId})" 
+                                        title="Tambah ke Keranjang">
+                                    <span class="material-symbols-rounded" style="font-size: 16px;">add_shopping_cart</span>
+                                    <span>+ Keranjang</span>
+                                </button>
+                                <button class="btn btn-primary btn-sm btn-buy" 
+                                        onclick="ProductsPage.buyNow(${m.MenuId})" 
+                                        title="Beli Sekarang (Langsung ke Checkout)">
+                                    <span class="material-symbols-rounded" style="font-size: 16px;">bolt</span>
+                                    <span>Beli</span>
+                                </button>
+                            </div>
+                        ` : `
+                            <span class="status-pill cancelled" style="font-size: 0.8rem; padding: 0.3rem 0.7rem;">Stok Habis</span>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    renderPaginationHtml() {
+        return `
+            <div class="pagination-wrap" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-top: 2rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted); font-size: 0.86rem;">
+                    <span>Tampilkan:</span>
+                    <select class="select-control" style="padding: 0.3rem 0.6rem; font-size: 0.85rem; height: auto; width: auto;" onchange="ProductsPage.setPageSize(this.value)">
+                        <option value="8" ${this.param.PageSize === 8 ? 'selected' : ''}>8 per halaman</option>
+                        <option value="12" ${this.param.PageSize === 12 ? 'selected' : ''}>12 per halaman</option>
+                        <option value="24" ${this.param.PageSize === 24 ? 'selected' : ''}>24 per halaman</option>
+                        <option value="48" ${this.param.PageSize === 48 ? 'selected' : ''}>48 per halaman</option>
+                    </select>
+                    <span>| Menampilkan Halaman <b>${this.param.PageNumber}</b> dari <b>${this.totalPages}</b> (Total ${this.totalData} Produk)</span>
+                </div>
+                ${this.totalPages > 1 ? `
+                    <div class="pagination-list">
+                        <button class="page-item" onclick="ProductsPage.setPage(${this.param.PageNumber - 1})" 
+                                ${this.param.PageNumber <= 1 ? 'disabled' : ''} title="Halaman Sebelumnya">
+                            <span class="material-symbols-rounded" style="font-size: 16px;">chevron_left</span>
+                        </button>
+
+                        ${Array.from({ length: this.totalPages }, (_, i) => i + 1).map(p => `
+                            <button class="page-item ${this.param.PageNumber === p ? 'active' : ''}" 
+                                    onclick="ProductsPage.setPage(${p})">
+                                ${p}
+                            </button>
+                        `).join('')}
+
+                        <button class="page-item" onclick="ProductsPage.setPage(${this.param.PageNumber + 1})" 
+                                ${this.param.PageNumber >= this.totalPages ? 'disabled' : ''} title="Halaman Selanjutnya">
+                            <span class="material-symbols-rounded" style="font-size: 16px;">chevron_right</span>
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    },
+
+    resetFilters() {
+        this.param.SearchKeyword = '';
+        this.param.Category = '';
+        this.param.PageNumber = 1;
+        const searchInput = document.getElementById('products-search-input');
+        if (searchInput) searchInput.value = '';
+        const catSelect = document.getElementById('products-category-select');
+        if (catSelect) catSelect.value = '';
+        this.loadMenus(true).then(() => this.renderGrid());
+    },
+
     render() {
         const root = document.getElementById('page-root');
         if (!root) return;
@@ -268,7 +408,7 @@ const ProductsPage = {
                                 Jelajahi seluruh varian minuman kopi, artisan tea, makanan utama, dan pastry pilihan.
                             </p>
                         </div>
-                        <div style="font-size: 0.88rem; color: var(--text-muted);">
+                        <div id="products-count-badge" style="font-size: 0.88rem; color: var(--text-muted);">
                             Menampilkan <b>${this.totalData}</b> Produk
                         </div>
                     </div>
@@ -293,12 +433,13 @@ const ProductsPage = {
                 <div class="filter-toolbar">
                     <div class="search-field">
                         <span class="material-symbols-rounded search-icon">search</span>
-                        <input type="text" placeholder="Cari nama kopi, makanan, minuman..." 
+                        <input type="text" id="products-search-input" 
+                               placeholder="Cari nama kopi, makanan, minuman..." 
                                value="${this.param.SearchKeyword}" 
                                oninput="ProductsPage.setSearch(this.value)" />
                     </div>
 
-                    <select class="select-control" onchange="ProductsPage.setCategory(this.value)">
+                    <select id="products-category-select" class="select-control" onchange="ProductsPage.setCategory(this.value)">
                         <option value="">Semua Kategori</option>
                         ${this.categories.map(c => `
                             <option value="${c.CategoryName}" ${this.param.Category === c.CategoryName ? 'selected' : ''}>
@@ -317,93 +458,14 @@ const ProductsPage = {
                     </select>
                 </div>
 
-                <!-- Grid Produk -->
-                ${this.isLoading ? `
-                    <div style="text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
-                        <div class="loading-spinner" style="margin-bottom: 1rem; width: 32px; height: 32px; border-width: 3px;"></div>
-                        <p style="font-weight: 600;">Memuat katalog produk...</p>
-                    </div>
-                ` : `
-                    <div class="menu-grid">
-                        ${this.menus.length === 0 ? `
-                            <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
-                                <span class="material-symbols-rounded" style="font-size: 48px; color: var(--text-light); margin-bottom: 0.5rem;">search_off</span>
-                                <p style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--text-heading);">Tidak ada produk yang cocok dengan pencarian "${this.escapeHtml(this.param.SearchKeyword)}".</p>
-                                <button class="btn btn-outline btn-sm" onclick="ProductsPage.setSearch(''); ProductsPage.setCategory('');">
-                                    Reset Filter Pencarian
-                                </button>
-                            </div>
-                        ` : this.menus.map((m, idx) => `
-                            <div class="menu-card card-hover-lift animate-fade-in-up" style="animation-delay: ${(idx % 8) * 0.05}s; ${!m.IsAvailable ? 'opacity: 0.7;' : ''}">
-                                <div class="menu-image-container product-card-visual">
-                                    <img src="${m.ImageUrl || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80'}" 
-                                         alt="${m.Name}" 
-                                         onerror="this.src='https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80'" />
-                                    <span class="category-chip">${m.CategoryName}</span>
-                                    ${!m.IsAvailable ? '<span class="status-pill cancelled" style="position:absolute;top:10px;right:10px;">Habis</span>' : ''}
-                                </div>
-                                <div class="menu-body">
-                                    <h3 class="menu-name">${m.Name}</h3>
-                                    <p class="menu-desc">${m.Description || 'Diracik dengan biji kopi dan bahan baku berkualitas tinggi.'}</p>
-                                    <div class="menu-card-footer">
-                                        <div class="menu-price">${App.formatRupiah(m.Price)}</div>
-                                        ${m.IsAvailable ? `
-                                            <div class="menu-actions-group">
-                                                <button class="btn btn-outline btn-sm btn-cart" 
-                                                        onclick="ProductsPage.addToCart(${m.MenuId})" 
-                                                        title="Tambah ke Keranjang">
-                                                    <span class="material-symbols-rounded" style="font-size: 16px;">add_shopping_cart</span>
-                                                    <span>+ Keranjang</span>
-                                                </button>
-                                                <button class="btn btn-primary btn-sm btn-buy" 
-                                                        onclick="ProductsPage.buyNow(${m.MenuId})" 
-                                                        title="Beli Sekarang (Langsung ke Checkout)">
-                                                    <span class="material-symbols-rounded" style="font-size: 16px;">bolt</span>
-                                                    <span>Beli</span>
-                                                </button>
-                                            </div>
-                                        ` : `
-                                            <span class="status-pill cancelled" style="font-size: 0.8rem; padding: 0.3rem 0.7rem;">Stok Habis</span>
-                                        `}
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `}
+                <!-- Grid Produk Container -->
+                <div id="products-grid-container" class="menu-grid">
+                    ${this.renderGridHtml()}
+                </div>
 
-                <!-- Pagination Component (Poin 7 PDF: Prev, Next, Nomor Halaman, Info Jumlah Data, Limit Selector) -->
-                <div class="pagination-wrap" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-top: 2rem;">
-                    <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted); font-size: 0.86rem;">
-                        <span>Tampilkan:</span>
-                        <select class="select-control" style="padding: 0.3rem 0.6rem; font-size: 0.85rem; height: auto; width: auto;" onchange="ProductsPage.setPageSize(this.value)">
-                            <option value="8" ${this.param.PageSize === 8 ? 'selected' : ''}>8 per halaman</option>
-                            <option value="12" ${this.param.PageSize === 12 ? 'selected' : ''}>12 per halaman</option>
-                            <option value="24" ${this.param.PageSize === 24 ? 'selected' : ''}>24 per halaman</option>
-                            <option value="48" ${this.param.PageSize === 48 ? 'selected' : ''}>48 per halaman</option>
-                        </select>
-                        <span>| Menampilkan Halaman <b>${this.param.PageNumber}</b> dari <b>${this.totalPages}</b> (Total ${this.totalData} Produk)</span>
-                    </div>
-                    ${this.totalPages > 1 ? `
-                        <div class="pagination-list">
-                            <button class="page-item" onclick="ProductsPage.setPage(${this.param.PageNumber - 1})" 
-                                    ${this.param.PageNumber <= 1 ? 'disabled' : ''} title="Halaman Sebelumnya">
-                                <span class="material-symbols-rounded" style="font-size: 16px;">chevron_left</span>
-                            </button>
-
-                            ${Array.from({ length: this.totalPages }, (_, i) => i + 1).map(p => `
-                                <button class="page-item ${this.param.PageNumber === p ? 'active' : ''}" 
-                                        onclick="ProductsPage.setPage(${p})">
-                                    ${p}
-                                </button>
-                            `).join('')}
-
-                            <button class="page-item" onclick="ProductsPage.setPage(${this.param.PageNumber + 1})" 
-                                    ${this.param.PageNumber >= this.totalPages ? 'disabled' : ''} title="Halaman Selanjutnya">
-                                <span class="material-symbols-rounded" style="font-size: 16px;">chevron_right</span>
-                            </button>
-                        </div>
-                    ` : ''}
+                <!-- Pagination Component Container -->
+                <div id="products-pagination-container">
+                    ${this.renderPaginationHtml()}
                 </div>
             </div>
         `;
